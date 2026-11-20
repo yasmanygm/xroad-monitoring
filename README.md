@@ -1,0 +1,28 @@
+# xroad-monitoring
+
+Monitoreo funcional de la plataforma X-Road mediante **X-Road Metrics** (herramienta oficial de código abierto de NIIS): recolección, procesamiento, análisis y publicación de los datos de monitoreo operacional de los Security Servers.
+
+## Documentación del proyecto
+
+| Doc | Contenido |
+|---|---|
+| [01 — Descripción del proyecto](docs/01-descripcion-proyecto.md) | Propósito, alcance, datos monitoreados, actores y parámetros de la plataforma por completar |
+| [02 — Requisitos](docs/02-requisitos.md) | Requisitos funcionales (REQ) y no funcionales (RNF) con criterios de aceptación |
+| [03 — Arquitectura](docs/03-arquitectura.md) | Módulos, flujo de datos, niveles de privacidad, puertos |
+| [04 — Diseño de despliegue](docs/04-diseno-despliegue.md) | Tres escenarios (piloto / producción recomendada / gran escala), dimensionamiento y reglas de firewall |
+| [05 — Guía de instalación](docs/05-guia-instalacion.md) | Paso a paso: requisitos previos en X-Road, MongoDB, paquetes, primera recolección y alternativa Docker |
+| [06 — Configuración](docs/06-configuracion.md) | `settings.yaml` por módulo, perfiles por entorno, cron, logs y heartbeat |
+| [07 — Operación y mantenimiento](docs/07-operacion-mantenimiento.md) | Rutinas, respaldos, actualizaciones e incidencias frecuentes |
+| [08 — Seguridad](docs/08-seguridad.md) | Clasificación de datos, controles obligatorios y riesgos |
+| [09 — Pruebas y aceptación](docs/09-pruebas-aceptacion.md) | Casos de prueba y criterios de go-live |
+| [10 — Plan de implementación](docs/10-plan-implementacion.md) | Fases 0–3, riesgos y decisiones pendientes |
+| [Diagrama de despliegue](docs/diagrama-despliegue.md) | Diagrama (PNG + fuente Mermaid editable) |
+| [Referencias](docs/referencias.md) | Fuentes oficiales de NIIS utilizadas |
+
+## Cómo incorporar un requisito nuevo
+1. Abre un Issue con la plantilla **Requisito** (`.github/ISSUE_TEMPLATE/requisito.md`).
+2. Asigna prioridad (Alta / Media / Baja) y tipo (Funcional / No funcional).
+3. Cuando se apruebe, añádelo a `docs/02-requisitos.md` con su ID (REQ-xxx / RNF-xxx).
+
+## Estado
+Fase 0 — Documentación inicial completa. Pendiente: completar los parámetros de la plataforma (doc 01, §6) y las decisiones del doc 10 para iniciar el piloto.
