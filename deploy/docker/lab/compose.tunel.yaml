@@ -1,0 +1,40 @@
+# ============================================================
+# Publicación DEMO con Cloudflare Tunnel (opcional)
+# Expone SOLO las interfaces de datos anonimizados (Opendata y
+# Networking) con un enlace público HTTPS, sin abrir puertos en
+# el host. Pensado para el laboratorio/demostración, no como
+# publicación definitiva (para eso: dominio propio + proxy
+# inverso, ver docs/12).
+#
+# Requisitos:
+#  - El compose piloto (o público) ya levantado: este fichero se
+#    conecta a su red externa xrd-metrics-network y alcanza los
+#    contenedores por su nombre.
+#  - Un túnel creado en Cloudflare Zero Trust (Networks > Tunnels)
+#    con dos rutas públicas, por ejemplo:
+#      opendata.<tu-dominio>    -> http://opendata_module:80
+#      networking.<tu-dominio>  -> http://networking_module:3838
+#    y su token en la variable TUNNEL_TOKEN (.env o entorno).
+#
+# Uso:
+#   TUNNEL_TOKEN=xxxx docker compose -f compose.tunel.yaml up -d
+#
+# NUNCA expongas por el túnel: mongodb, postgresql, las UI de
+# administración (perfil admin) ni las consolas de X-Road.
+# ============================================================
+name: xroad-metrics-tunel
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:?Define TUNNEL_TOKEN con el token del tunel de Cloudflare}
+    networks:
+      - xrd-metrics-network
+
+networks:
+  xrd-metrics-network:
+    external: true

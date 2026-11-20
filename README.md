@@ -18,6 +18,7 @@ Monitoreo funcional de la plataforma X-Road mediante **X-Road Metrics** (herrami
 | [10 — Plan de implementación](docs/10-plan-implementacion.md) | Fases 0–3, riesgos y decisiones pendientes |
 | [Diagrama de despliegue](docs/diagrama-despliegue.md) | Diagrama (PNG + fuente Mermaid editable) |
 | [11 — Despliegue con Docker](docs/11-despliegue-docker.md) | Composes para piloto, zona privada y zona pública, sobre el setup Docker oficial |
+| [12 — Laboratorio X-Road de prueba](docs/12-laboratorio-xroad-prueba.md) | Laboratorio completo: X-Road de prueba (xrd-dev-stack) + Metrics + tráfico generado + enlace público de supervisión |
 | [Referencias](docs/referencias.md) | Fuentes oficiales de NIIS utilizadas |
 
 ## Despliegue con Docker
