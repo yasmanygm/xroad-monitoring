@@ -1,0 +1,165 @@
+# ============================================================
+# X-Road Metrics — ZONA PRIVADA (datos confidenciales)
+# Host(s) en la VLAN privada. Contiene MongoDB y los módulos que
+# trabajan con datos SIN anonimizar. NADA de esto se publica.
+#
+# El Anonymizer es el único servicio que sale de esta zona:
+# escribe en el PostgreSQL de la zona pública
+# (${POSTGRES_HOST}:${POSTGRES_PORT}), solo datos anonimizados.
+#
+# Se ejecuta dentro de la carpeta Docker/ del repo oficial
+# (reutiliza ./init-generado/mongodb-init). Ver README.md.
+# ============================================================
+name: xroad-metrics-privado
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER:-root}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-root_pw}
+      - MONGO_INITDB_DATABASE=auth_db
+    volumes:
+      - ./init-generado/mongodb-init/mongo-init-collector.js:/docker-entrypoint-initdb.d/mongo-init-collector.js:ro
+      - ./init-generado/mongodb-init/mongo-init-corrector.js:/docker-entrypoint-initdb.d/mongo-init-corrector.js:ro
+      - ./init-generado/mongodb-init/mongo-init-anonymizer.js:/docker-entrypoint-initdb.d/mongo-init-anonymizer.js:ro
+      - ./init-generado/mongodb-init/mongo-init-opendata-collector.js:/docker-entrypoint-initdb.d/mongo-init-opendata-collector.js:ro
+      - ./init-generado/mongodb-init/mongo-init-reports.js:/docker-entrypoint-initdb.d/mongo-init-reports.js:ro
+      - mongodb-data:/data/db
+      - mongodb-config:/data/configdb
+    # Sin puertos publicados: solo lo alcanzan los módulos de esta red.
+    # (Escenario avanzado: replica set entre varios hosts, ver docs/04.)
+    networks:
+      - xrd-metrics-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  collector_module:
+    image: xroad-metrics-collector-module
+    container_name: collector_module
+    environment:
+      - setting_xroad.instance=${XROAD_INSTANCE:-DEV}
+      - setting_xroad.central-server.host=${CENTRAL_SERVER_HOST:-cs}
+      - setting_xroad.security-server.host=${SECURITY_SERVER_HOST:-ss0:8080}
+      - setting_xroad.monitoring-client.memberclass=${MONITORING_MEMBER_CLASS:-COM}
+      - setting_xroad.monitoring-client.membercode=${MONITORING_MEMBER_CODE:-1234}
+      - setting_xroad.monitoring-client.subsystemcode=${MONITORING_SUBSYSTEM_CODE:-metrics}
+      - setting_collector.records-from-offset=31536000
+      - setting_collector.records-to-offset=0
+      - setting_mongodb.user=collectordev
+      - setting_mongodb.password=${MONGO_COLLECTOR_PASSWORD:-collectordevpw}
+      - setting_mongodb.host=mongodb
+    networks:
+      - xrd-metrics-network
+      - xroad-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  corrector_module:
+    image: xroad-metrics-corrector-module
+    container_name: corrector_module
+    restart: unless-stopped
+    environment:
+      - setting_xroad.instance=${XROAD_INSTANCE:-DEV}
+      - setting_mongodb.user=correctordev
+      - setting_mongodb.password=${MONGO_CORRECTOR_PASSWORD:-correctordevpw}
+      - setting_mongodb.host=mongodb
+      - setting_corrector.wait-on-done=60
+      - setting_corrector.wait-on-error=60
+    networks:
+      - xrd-metrics-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  reports_module:
+    image: xroad-metrics-reports-module
+    container_name: reports_module
+    environment:
+      - setting_xroad.instance=${XROAD_INSTANCE:-DEV}
+      - setting_mongodb.user=reportsdev
+      - setting_mongodb.password=${MONGO_REPORTS_PASSWORD:-reportsdevpw}
+      - setting_mongodb.host=mongodb
+      - setting_reports.email.sender=${REPORTS_EMAIL_SENDER:-test@x-road.global}
+      - setting_reports.email.smtp.host=${REPORTS_SMTP_HOST:-localhost}
+    volumes:
+      - reports-data:/var/lib/xroad-metrics/reports
+    networks:
+      - xrd-metrics-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  anonymizer_module:
+    image: xroad-metrics-anonymizer-module
+    container_name: anonymizer_module
+    environment:
+      - setting_xroad.instance=${XROAD_INSTANCE:-DEV}
+      - setting_xroad.central-server.host=${CENTRAL_SERVER_HOST:-cs}
+      - setting_mongodb.user=anonymizerdev
+      - setting_mongodb.password=${MONGO_ANONYMIZER_PASSWORD:-anonymizerdevpw}
+      - setting_mongodb.host=mongodb
+      # PostgreSQL REMOTO, en la zona pública:
+      - setting_postgres.user=anonymizer_${INSTANCE_LOWER:-dev}
+      - setting_postgres.password=${PG_ANONYMIZER_PASSWORD:-anonymizer_devsecret}
+      - setting_postgres.host=${POSTGRES_HOST:?Define POSTGRES_HOST en .env (host PostgreSQL de la zona publica)}
+      - setting_postgres.port=${POSTGRES_PORT:-5432}
+      - setting_postgres.database-name=opendata_${INSTANCE_LOWER:-dev}
+      - setting_postgres.readonly-users=["opendata_${INSTANCE_LOWER:-dev}", "networking_${INSTANCE_LOWER:-dev}"]
+    networks:
+      - xrd-metrics-network
+      - xroad-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  opendata_collector_module:
+    image: xroad-metrics-opendata-collector-module
+    container_name: opendata_collector_module
+    profiles: ["agregador"]
+    environment:
+      - setting_xroad.instance=${XROAD_INSTANCE:-DEV}
+      - setting_mongodb.user=opendatacollectordev
+      - setting_mongodb.password=${MONGO_OPENDATA_COLLECTOR_PASSWORD:-opendatacollectordevpw}
+      - setting_mongodb.host=mongodb
+    networks:
+      - xrd-metrics-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  mongo-express:
+    image: mongo-express:1.0.2-20
+    container_name: mongo-express
+    profiles: ["admin"]
+    restart: unless-stopped
+    environment:
+      - ME_CONFIG_BASICAUTH_USERNAME=${MONGO_ROOT_USER:-root}
+      - ME_CONFIG_BASICAUTH_PASSWORD=${MONGO_ROOT_PASSWORD:-root_pw}
+      - ME_CONFIG_MONGODB_URL=mongodb://${MONGO_ROOT_USER:-root}:${MONGO_ROOT_PASSWORD:-root_pw}@mongodb:27017/?authSource=admin
+    ports:
+      - "127.0.0.1:8081:8081"
+    networks:
+      - xrd-metrics-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+networks:
+  xrd-metrics-network:
+    name: xrd-metrics-network
+    driver: bridge
+  xroad-network:
+    external: true
+
+volumes:
+  mongodb-data:
+  mongodb-config:
+  reports-data:

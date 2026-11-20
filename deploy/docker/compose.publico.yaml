@@ -1,0 +1,107 @@
+# ============================================================
+# X-Road Metrics — ZONA PÚBLICA / DMZ (datos ANONIMIZADOS)
+# Host en la VLAN pública. Solo contiene PostgreSQL con los datos
+# ya anonimizados y las interfaces web. Esta zona NO tiene ninguna
+# ruta hacia MongoDB (verificarlo con el firewall, docs/04 y 08).
+#
+# Entradas permitidas:
+#  - Anonymizer (zona privada) -> postgresql:5432  [único flujo]
+#  - Networking (este host)     -> postgresql:5432
+#  - Usuarios -> opendata/networking vía proxy HTTPS del host
+#
+# Se ejecuta dentro de la carpeta Docker/ del repo oficial
+# (reutiliza ./init-generado/postgresql-init). Ver README.md.
+# ============================================================
+name: xroad-metrics-publico
+
+services:
+  postgresql:
+    image: postgres:15
+    container_name: postgresql
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_ADMIN_USER:-xroadmetrics}
+      - POSTGRES_PASSWORD=${POSTGRES_ADMIN_PASSWORD:-postgres_pw}
+    volumes:
+      - ./init-generado/postgresql-init/init-opendata-db.sql:/docker-entrypoint-initdb.d/init-opendata-db.sql:ro
+      - postgresql-data:/var/lib/postgresql/data
+    ports:
+      # Por defecto solo local. En despliegue dividido, poner en .env
+      # POSTGRES_BIND_IP=<IP-VLAN-privada-de-este-host> y permitir por
+      # firewall SOLO desde el host del Anonymizer.
+      - "${POSTGRES_BIND_IP:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - xrd-metrics-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_ADMIN_USER:-xroadmetrics}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  opendata_module:
+    image: xroad-metrics-opendata-module
+    container_name: opendata_module
+    restart: unless-stopped
+    environment:
+      - setting_xroad.instance=${XROAD_INSTANCE:-DEV}
+      - setting_postgres.user=opendata_${INSTANCE_LOWER:-dev}
+      - setting_postgres.password=${PG_OPENDATA_PASSWORD:-opendata_devsecret}
+      - setting_postgres.database-name=opendata_${INSTANCE_LOWER:-dev}
+      - setting_postgres.host=postgresql
+      - setting_opendata.delay-days=${OPENDATA_DELAY_DAYS:-0}
+      - setting_django.secret-key=${DJANGO_SECRET_KEY:-secret}
+    ports:
+      # Publicar hacia usuarios a través del proxy inverso HTTPS del
+      # host (Apache/Nginx con certificado del operador), no directo.
+      - "${OPENDATA_BIND_IP:-127.0.0.1}:${OPENDATA_PORT:-8000}:80"
+    networks:
+      - xrd-metrics-network
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/api/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  networking_module:
+    image: xroad-metrics-networking-module
+    container_name: networking_module
+    restart: unless-stopped
+    platform: linux/amd64
+    environment:
+      - setting_xroad.instance=${XROAD_INSTANCE:-DEV}
+      - setting_postgres.host=postgresql
+      - setting_postgres.port=5432
+      - setting_postgres.username=networking_${INSTANCE_LOWER:-dev}
+      - setting_postgres.password=${PG_NETWORKING_PASSWORD:-networking_devsecret}
+      - setting_networking.buffer=0
+    ports:
+      - "${NETWORKING_BIND_IP:-127.0.0.1}:${NETWORKING_PORT:-8001}:3838"
+    networks:
+      - xrd-metrics-network
+    depends_on:
+      postgresql:
+        condition: service_healthy
+
+  adminer:
+    image: adminer:5.4.1
+    container_name: adminer
+    profiles: ["admin"]
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgresql
+    ports:
+      - "127.0.0.1:8082:8080"
+    networks:
+      - xrd-metrics-network
+
+networks:
+  xrd-metrics-network:
+    name: xrd-metrics-network
+    driver: bridge
+
+volumes:
+  postgresql-data:
