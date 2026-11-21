@@ -9,23 +9,26 @@
 # generar también registros con fallo (útiles para ver en
 # Opendata/Networking cómo se refleja un error).
 #
-# AJUSTA las variables a lo que tenga registrado tu pila de
-# laboratorio (compruébalo en la UI del SS: servicios y clientes
-# dados de alta). Los valores por defecto son los del entorno
-# de desarrollo oficial (instancia DEV).
+# Valores verificados 2026-11-20 contra el xrd-dev-stack real
+# (commit 1ffb1405, última versión con ese stack): el consumidor
+# es ss1 con DEV:COM:4321:TestClient y el productor es ss0 con
+# DEV:COM:1234:TestService, servicio getRandom v1, namespace
+# http://test.x-road.fi/producer. El proxy de mensajes de ss1 es
+# el puerto 4310 en el host (8080 dentro de la red xroad-network).
+# Si tu pila es otra, ajusta las variables de entorno.
 #
 # Uso:  ./generar-trafico.sh [nº de llamadas]     (defecto: 50)
 # ============================================================
 set -euo pipefail
 
-SS_URL="${SS_URL:-http://localhost:8080}"        # proxy de mensajes del SS consumidor
+SS_URL="${SS_URL:-http://localhost:4310}"        # proxy de mensajes del SS consumidor ss1 (4310 en host; ss1:8080 dentro de la red)
 INSTANCE="${XROAD_INSTANCE:-DEV}"
 CLIENT_CLASS="${CLIENT_CLASS:-COM}"
-CLIENT_CODE="${CLIENT_CODE:-1234}"
-CLIENT_SUBSYSTEM="${CLIENT_SUBSYSTEM:-testClient}"
+CLIENT_CODE="${CLIENT_CODE:-4321}"
+CLIENT_SUBSYSTEM="${CLIENT_SUBSYSTEM:-TestClient}"
 SERVICE_CLASS="${SERVICE_CLASS:-COM}"
 SERVICE_CODE="${SERVICE_CODE:-1234}"
-SERVICE_SUBSYSTEM="${SERVICE_SUBSYSTEM:-testService}"
+SERVICE_SUBSYSTEM="${SERVICE_SUBSYSTEM:-TestService}"
 SERVICE_NAME="${SERVICE_NAME:-getRandom}"        # servicio de prueba a invocar
 USER_ID="${USER_ID:-LAB-USER-1}"
 TOTAL="${1:-50}"
@@ -57,7 +60,7 @@ call() {
     <xrd:protocolVersion>4.0</xrd:protocolVersion>
   </SOAP-ENV:Header>
   <SOAP-ENV:Body>
-    <ns1:${service} xmlns:ns1="http://test.x-road.global/producer"/>
+    <ns1:${service} xmlns:ns1="http://test.x-road.fi/producer"/>
   </SOAP-ENV:Body>
 </SOAP-ENV:Envelope>
 XML
