@@ -30,6 +30,7 @@ SERVICE_CLASS="${SERVICE_CLASS:-COM}"
 SERVICE_CODE="${SERVICE_CODE:-1234}"
 SERVICE_SUBSYSTEM="${SERVICE_SUBSYSTEM:-TestService}"
 SERVICE_NAME="${SERVICE_NAME:-getRandom}"        # servicio de prueba a invocar
+SERVICE_VERSION="${SERVICE_VERSION:-v1}"         # versión registrada del servicio; SIN ella en la cabecera, el serverproxy responde unknown_service aunque el servicio exista (verificado 2026-11-21 contra getRandom.v1)
 USER_ID="${USER_ID:-LAB-USER-1}"
 TOTAL="${1:-50}"
 CADA_FALLO=10
@@ -54,6 +55,7 @@ call() {
       <id:memberCode>${SERVICE_CODE}</id:memberCode>
       <id:subsystemCode>${SERVICE_SUBSYSTEM}</id:subsystemCode>
       <id:serviceCode>${service}</id:serviceCode>
+      <id:serviceVersion>${SERVICE_VERSION}</id:serviceVersion>
     </xrd:service>
     <xrd:userId>${USER_ID}</xrd:userId>
     <xrd:id>${id}</xrd:id>
