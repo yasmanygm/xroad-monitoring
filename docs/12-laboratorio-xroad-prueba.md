@@ -71,6 +71,16 @@ En la configuración del Central Server / del SS puerta de entrada (`ss0`), el s
 
 Además, OpMon debe estar habilitado en los Security Servers a monitorizar (por defecto en la pila de desarrollo; verifícalo según doc 05, Paso 0).
 
+**Designación en el Central Server (imprescindible).** Registrar el cliente en `ss0` no basta: para que la consulta de datos operacionales devuelva los registros de *todos* los clientes, quien consulta debe ser el **cliente de monitoreo central** designado en la configuración global del CS. Si no lo es, cada SS responde en modo restringido (CALLER_ONLY) y solo devuelve los registros del propio cliente que consulta: el collector «funciona», sin errores, pero solo se trae sus propias consultas (en el laboratorio: 3 registros de ss0 y 1 de ss1 por recolección, ninguno del tráfico real). La designación se hace subiendo al CS la parte de configuración `MONITORING` con el fichero [`deploy/docker/lab/monitoring-params.xml`](../deploy/docker/lab/monitoring-params.xml) (su contenido designa `monitoringClientId` = `DEV:COM:1234:metrics`):
+
+```bash
+# Con la sesión de la API del CS ya abierta (login xrd/secret y cookie XSRF-TOKEN en /tmp/cs.txt)
+curl -sk -b /tmp/cs.txt -H "X-XSRF-TOKEN: $TOKENC" -X POST https://localhost:4100/api/v1/configuration-sources/INTERNAL/configuration-parts -F "content_identifier=MONITORING" -F "file=@deploy/docker/lab/monitoring-params.xml;type=text/xml"
+# → 204. Después hay que esperar 1–2 minutos a que la configuración global se distribuya a los SS.
+```
+
+Verificación: la recolección del Paso 5 trae decenas de documentos por servidor (≈50 por cada 50 llamadas). Si trae solo 3+1, falta esta designación.
+
 ### Paso 4 — Levantar X-Road Metrics
 Con el `.env` del piloto **sin cambios** (los valores por defecto son los de este laboratorio):
 ```bash
@@ -93,12 +103,14 @@ docker compose -f compose.piloto.yaml run --rm anonymizer_module
 ```
 El Corrector corre en continuo; espera unos minutos a que procese los registros antes de anonimizar.
 
+Dos síntomas ya vistos, con su causa: si el `collect` devuelve solo 3 documentos de ss0 y 1 de ss1, no es el tráfico — es la designación del cliente de monitoreo del Paso 3. Y si `generar-trafico.sh` responde FALLO SOAP en todas las llamadas con `serverproxy.unknown_service`, revisa que la cabecera lleve `serviceVersion`: el servicio está registrado como `getRandom.v1` y sin versión el serverproxy no lo reconoce.
+
 ### Paso 6 — Supervisar el flujo (local)
 | Qué mirar | Dónde | Qué deberías ver |
 |---|---|---|
 | Latido del sistema | `http://localhost:8000/api/heartbeat` | Respuesta OK de Opendata |
-| Uso de servicios | Opendata — `http://localhost:8000` | Las llamadas del Paso 5 por servicio/miembro, incluidos los fallos inducidos |
-| Mapa de intercambio | Networking — `http://localhost:8001` | El grafo consumidor → productor del laboratorio |
+| Uso de servicios | Opendata — `http://localhost:8000` | Las llamadas del Paso 5 por servicio/miembro, incluidos los fallos inducidos (la vista previa web muestra solo los 10 registros más recientes: `preview-limit: 10` en la configuración del módulo; el total real está en PostgreSQL) |
+| Mapa de intercambio | Networking — `http://localhost:8001` | El grafo consumidor → productor del laboratorio (si la página no termina de cargar tras la primera anonimización, reinicia `networking_module`: prepara los datos del visualizador al arrancar y la primera preparación fue con la base vacía) |
 | Volumen recolectado | Logs del Collector y conteos en MongoDB | 2 registros por llamada (consumidor + productor) |
 
 ### Paso 7 — Publicar el enlace público
