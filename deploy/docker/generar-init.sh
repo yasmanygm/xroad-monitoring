@@ -62,9 +62,15 @@ sed -i "s/anonymizer_dev/anonymizer_${LOWER}/g"             "$SQL"
 sed -i "s/networking_dev/networking_${LOWER}/g"             "$SQL"
 sed -i "s/opendata_dev/opendata_${LOWER}/g"                 "$SQL"
 
-# --- Verificación: no debe quedar rastro de DEV ni de contraseñas de desarrollo ---
-if grep -RInE "_DEV|devpw|devsecret" init-generado/ ; then
-  echo "ERROR: quedan valores de desarrollo sin sustituir (revisa lo anterior)." >&2
+# --- Verificación: no deben quedar las contraseñas de desarrollo de la plantilla ---
+# (El sufijo _DEV en los nombres de BD es correcto cuando la instancia es DEV;
+#  solo es un resto sin sustituir si la instancia es otra.)
+if grep -RInE "devpw|devsecret" init-generado/ ; then
+  echo "ERROR: quedan contraseñas de desarrollo sin sustituir (revisa lo anterior)." >&2
+  exit 1
+fi
+if [[ "$INSTANCE" != "DEV" ]] && grep -RIn "_DEV" init-generado/ ; then
+  echo "ERROR: quedan nombres de BD de la instancia DEV sin sustituir." >&2
   exit 1
 fi
 
