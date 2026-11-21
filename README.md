@@ -20,6 +20,7 @@ Monitoreo funcional de la plataforma X-Road mediante **X-Road Metrics** (herrami
 | [11 — Despliegue con Docker](docs/11-despliegue-docker.md) | Composes para piloto, zona privada y zona pública, sobre el setup Docker oficial |
 | [12 — Laboratorio X-Road de prueba](docs/12-laboratorio-xroad-prueba.md) | Laboratorio completo: X-Road de prueba (xrd-dev-stack) + Metrics + tráfico generado + enlace público de supervisión |
 | [13 — Laboratorio en Codespaces](docs/13-laboratorio-codespaces.md) | Opción temporal y gratuita: el laboratorio en GitHub Codespaces (4 núcleos/16 GB, ~30 h/mes gratis) para verlo y tomar instantáneas |
+| [14 — Replicación e incidencias](docs/14-replicacion-laboratorio.md) | Cómo reconstruir el laboratorio desde cero si el codespace se borra, con las incidencias de la primera puesta en marcha (parche `default_csr_format`, healthcheck de isopenapi, imagen del devcontainer) |
 | [Referencias](docs/referencias.md) | Fuentes oficiales de NIIS utilizadas |
 
 ## Despliegue con Docker
